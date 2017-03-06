@@ -1,4 +1,4 @@
-The shell will give a prompt for the user to type in a command, take the command, execute it,
+The shell gives a prompt for the user to type in a command, take the command, execute it,
 and then give the prompt back for the next command (i.e., actually give the functionality of a
 shell). Your program for the assignment should do the following:
 o Give a prompt (like the $ prompt you get in Linux) for the user to type in a command.
