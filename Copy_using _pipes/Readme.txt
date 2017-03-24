@@ -1,7 +1,6 @@
-Takes two filenames, file1 and file2, as arguments from the command line (use
-command line arguments, do not scanf)..
-o Parent opens file1 for read and file2 for write (use open call) If file2 is not present it
-should be created; if it is present it will be overwritten. If there is any error, exit with a
+Takes two filenames, file1 and file2, as arguments from the command line 
+Parent opens file1 for read and file2 for write (use open call) If file2 is not present it
+will be created; if it is present it will be overwritten. If there is any error, exit with a
 message (use perror).
 o If no error, parent creates two pipes, pipe1 and pipe2.
 o Parent creates a child process.
