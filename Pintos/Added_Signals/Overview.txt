@@ -1,0 +1,116 @@
+Signals in PintOS
+FILES CHANGED
+● thread.h​ in src/threads
+● thread.c​ in src/threads
+● Makefile ​ in src/threads/build
+FILES ADDED
+● signal.h​ in src/threads
+● signal.c ​ in src/threads
+DATA STRUCTURES MODIFIED
+● struct thread ​ in thread.h
+Added the following fields to struct thread
+○ tid_t parent;
+//parent thread id
+○ sigset_t sigign;
+//set of signals this thread will ignore
+○ sigset_t sigmask;
+//set of signals this thread will block
+○ unsigned long long starttime; //start time of this thread
+○ unsigned long long maxlifetime; //maxlifetime of the thread (0 = infinity)
+○ unsigned int child;
+//number of child created by this thread
+○ unsigned int dchild;
+//number of childs which are dead
+● Added function
+struct thread* get_thread(tid_t t);
+in thread.h(declaration) and thread.c
+○ Function returns pointer to thread having id t
+○ NULL if no alive thread has id t
+● Updated function ​ void thread_init(void) ​ in thread.c
+○ List initialization of signals list (struct list sig_list)2
+○ Initialization of newly declared struct thread fields for initial thread
+■ For other threads the fields are initialized in thread_create function
+■ Parent of this thread is given id -1
+■ Initially child = -1 because this thread is the one who will create idle
+thread and we do not want to count idle thread as it’s child from user’s
+perspective because no user program should be able to kill idle thread
+● In function ​ static void
+● idle (void *idle_started_ UNUSED)
+○ idle_thread->parent = -1;
+○ Otherwise it’s parent is the initial thread which is user
+program
+● static unsigned long long clock_count = 0; ​ in thread.c to keep count of clock ticks
+○ Clock count is incremented function ​ void thread_tick (void)
+■ Clock_count++
+● In function ​ tid_t thread_create (const char *name, int priority, thread_func
+*function, void *aux)
+○ Initialization of newly declared struct thread fields for initial thread
+■ Parent of new thread = thread who called this function whose pointer is
+returned by thread_current()
+■ start _time = clock_count // start time = current clock count
+■ t->maxlifetime = 0; //infinity
+■ t->child = 0;
+//initial no of child
+■ t->dchild = 0;
+//initial no of dead child
+■ sigign and sigmask are explained later
+● In function ​ void thread_exit (void)​ in thread.c
+○ Added code which loops every thread to find
+1. Parent of current thread and send signal to it
+2. Children of current thread and make their parent id in struct thread -1 to
+avoid possible parent-child mismatch in future if a new thread of same id
+is created
+● At end​ of function ​ void thread_schedule_tail (struct thread *prev)
+○ It is checked if current thread has exceeded it’s lifetime and a flag of SIG_CPU is
+raised lifetime is expired
+○ handleSignals​ (life expired flag); is called
+■ interrupts are disabled when this function is called.
+DESIGN OF SIGNALS
+● Data type sigset_t is defined to save set of signal types
+○ typedef int8_t sigset_t;
+○ Each bit represent each signal type3
+● To handle signals delivered to a function the following things are done-
+1. sigset_t calls = sigemptyset() is created
+2. List of all signals is traversed to search for the signals for this thread​ *
+3. For each signal found if the signal is not blocked then the signal is removed from
+the list it is added to ‘calls’ sigset_t
+4. For signals in calls intersection thread_current()->sigign default handler is called.
+● Since sigset_t is an int8_t , bitwise operations are used easily to manage
+the set , based on helper function setBit() , unsetBit() and checkBit() ,
+functions sigfillset(), sigemptyset(), sigaddset() and sigdelset() are
+implemented
+● Similarly bitwise helper functions are used to implement signal() call
+● To handle kill call, the following things are done-
+○ If signal is SIG_CPU or SIB_CHLD then -1 is returned and nothing is done
+○ If signal is SIG_KILL and receiving process not a direct child -1 is returned
+○ If signal of same type and to the same thread already exists in signals list then
+sender is updated otherwise new element is added in the list dynamically
+DATA STRUCTURES ADDED IN ​ signal.h ​ AND ​ signal.c
+typedef int8_t sigset_t; 
+enum sig_type{ 
+SIG_KILL = 0, 
+SIG_UBLOCK = 1, 
+SIG_USR = 2, 
+SIG_CHLD = 3, 
+SIG_CPU = 4 
+}; 
+ 
+enum sig_action{ 
+SIG_IGN = 0, 
+SIG_DFL = 1 
+}; 
+ 
+enum procmask_how{ 
+SIG_BLOCK = 0, 
+SIG_UNBLOCK = 1, 
+SIG_SETMASK = 2 
+}; 
+ 
+ 
+struct thread_signal{ 
+enum sig_type sig; 
+    int sender; 
+    void* reciever; //struct thread is not defined 
+    struct list_elem elem; 
+}; 
+ 
